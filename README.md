@@ -1,80 +1,93 @@
-# Python Container Action Template
+# fvuls-lockfile-uploader
 
-[![Action Template](https://img.shields.io/badge/Action%20Template-Python%20Container%20Action-blue.svg?colorA=24292e&colorB=0366d6&style=flat&longCache=true&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAM6wAADOsB5dZE0gAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAERSURBVCiRhZG/SsMxFEZPfsVJ61jbxaF0cRQRcRJ9hlYn30IHN/+9iquDCOIsblIrOjqKgy5aKoJQj4O3EEtbPwhJbr6Te28CmdSKeqzeqr0YbfVIrTBKakvtOl5dtTkK+v4HfA9PEyBFCY9AGVgCBLaBp1jPAyfAJ/AAdIEG0dNAiyP7+K1qIfMdonZic6+WJoBJvQlvuwDqcXadUuqPA1NKAlexbRTAIMvMOCjTbMwl1LtI/6KWJ5Q6rT6Ht1MA58AX8Apcqqt5r2qhrgAXQC3CZ6i1+KMd9TRu3MvA3aH/fFPnBodb6oe6HM8+lYHrGdRXW8M9bMZtPXUji69lmf5Cmamq7quNLFZXD9Rq7v0Bpc1o/tp0fisAAAAASUVORK5CYII=)](https://github.com/jacobtomlinson/python-container-action)
-[![Actions Status](https://github.com/futurevuls/fvuls-lockfile-uploader/workflows/Lint/badge.svg)](https://github.com/futurevuls/fvuls-lockfile-uploader/actions)
-[![Actions Status](https://github.com/futurevuls/fvuls-lockfile-uploader/workflows/Integration%20Test/badge.svg)](https://github.com/futurevuls/fvuls-lockfile-uploader/actions)
+[![CI](https://github.com/futurevuls/fvuls-lockfile-uploader/actions/workflows/ci.yml/badge.svg)](https://github.com/futurevuls/fvuls-lockfile-uploader/actions/workflows/ci.yml)
 
-This action can be used for uploading your lockfiles to future-vuls through the Public API.
+A GitHub Action that uploads a lockfile to [FutureVuls](https://vuls.biz/) through the Public API.
+If a lockfile with the same path is already registered on the server, the action updates it; otherwise it creates a new one.
+
+See the [FutureVuls manual](https://help.vuls.biz/manual/scan/cicd_image/) for how to prepare the server and the API token.
 
 ## Usage
 
 ### Inputs
 
-| Input                                             | Description                                        |
-|------------------------------------------------------|-----------------------------------------------|
-| `path`  | Relative path to lockfile |
-| `repoName` _(optional)_  | Specify a prefix for path ex|
+| Input | Required | Description |
+|---|---|---|
+| `path` | yes | Path to the lockfile, relative to the workspace |
+| `repoName` | no | Prefix added to the path registered in FutureVuls (e.g. `${{ github.repository }}`) |
 
-## Examples
+### Environment variables
 
-### Using the optional input
+| Name | Required | Description |
+|---|---|---|
+| `FVULS_TOKEN` | yes | FutureVuls API token. Store it as a repository secret |
+| `FVULS_SERVER_UUID` | yes | UUID of the FutureVuls server that owns the lockfile |
+| `FVULS_BASE_URL` | no | Public API endpoint over https (default: `https://rest.vuls.biz`) |
 
-This is how to use the optional input.
+### Registered path
+
+| `repoName` | `path` | Registered path |
+|---|---|---|
+| (none) | `./go.mod` | `go.mod` |
+| `owner/repo` | `./web/yarn.lock` | `owner/repo/web/yarn.lock` |
+| `https://github.com/owner/repo` | `go.mod` | `https://github.com/owner/repo/go.mod` |
+
+## Example
+
+The workflow below uploads `go.mod` and `web/yarn.lock` when either file changes on the `main` branch.
 
 ```yaml
-with:
-  repoName: ${{ github.repository }} # this is optional
-  path: './go.sum' # relative path to lockfile
-```
-
-### Final Working Example
-
-The example below will upload `go.sum` and `./web/yarn.lock`
-and the Action will only run when changes are applied to these files and pushed to release.
-
-```yaml
+name: Upload lockfiles
 on:
   push:
-    # Run Action only when changes are applied to these files and pushed to release.
-    paths:
-      - 'go.sum'
-      - './web/yarn.lock'
     branches:
-      - release
+      - main
+    paths:
+      - 'go.mod'
+      - 'web/yarn.lock'
 
-name: Check lockfiles
+permissions:
+  contents: read
+
 jobs:
-  build:
-    env:
-      FVULS_SERVER_UUID: ${{ secrets.FVULS_SERVER_UUID }} # change me
-      FVULS_TOKEN: ${{ secrets.FVULS_TOKEN }} # change me
-    name: Upload lockfile
-    runs-on: ubuntu-20.04
+  upload:
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Upload go.sum
-        uses: futurevuls/fvuls-lockfile-uploader@v1 
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Upload go.mod
+        uses: futurevuls/fvuls-lockfile-uploader@<commit SHA> # v1
+        env:
+          FVULS_SERVER_UUID: ${{ secrets.FVULS_SERVER_UUID }}
+          FVULS_TOKEN: ${{ secrets.FVULS_TOKEN }}
         with:
           repoName: ${{ github.repository }}
-          path: './go.sum'
+          path: './go.mod'
       - name: Upload web/yarn.lock
-        uses: futurevuls/fvuls-lockfile-uploader@v1 
+        uses: futurevuls/fvuls-lockfile-uploader@<commit SHA> # v1
+        env:
+          FVULS_SERVER_UUID: ${{ secrets.FVULS_SERVER_UUID }}
+          FVULS_TOKEN: ${{ secrets.FVULS_TOKEN }}
         with:
           repoName: ${{ github.repository }}
           path: './web/yarn.lock'
-
 ```
 
-You can use `main.py` from command line with all required environments like below.
+Pass `FVULS_TOKEN` only to the steps that run this action, so that other actions in the job cannot read it.
+
+Pin the action to a full commit SHA, as the example does. Find the SHA of a release on the [tags page](https://github.com/futurevuls/fvuls-lockfile-uploader/tags), or with `git ls-remote https://github.com/futurevuls/fvuls-lockfile-uploader 'refs/tags/v1^{}' refs/tags/v1`. When the output has a `refs/tags/v1^{}` line, use the SHA on that line: it is the commit, and the other line is the tag object.
+
+## Running locally
+
+Build the binary in this repository, then run it from the root of the repository that has the lockfile.
+Use the same `INPUT_REPONAME` and `INPUT_PATH` as the workflow, so that the run updates the same lockfile in FutureVuls.
 
 ```bash
-export FVULS_BASE_URL="https://rest.vuls.biz"
+go build -o /path/to/fvuls-lockfile-uploader .
+
+cd /path/to/your-repo
 export FVULS_SERVER_UUID="CHANGE ME"
 export FVULS_TOKEN="CHANGE ME"
-export INPUT_REPONAME="CHANGE ME"
-export INPUT_PATH="./go.sum"
-
-./main.py
+export INPUT_REPONAME="owner/repo"
+export INPUT_PATH="./go.mod"
+/path/to/fvuls-lockfile-uploader
 ```

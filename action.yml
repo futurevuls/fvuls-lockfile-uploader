@@ -1,13 +1,12 @@
-name: "Post lockfile to future-vuls"
-description: "Use this action to automatically create a lockfile in future-vuls."
-author: "Marcelo (qwexvf)"
+name: "Upload lockfile to FutureVuls"
+description: "Upload a lockfile to FutureVuls through the Public API."
 inputs:
-  repoName:
-    description: "Adds a custom prefix the the beginning of the path."
-    required: false
   path:
-    description: "Specify path param for a specific lockfile"
+    description: "Path to the lockfile, relative to the workspace."
     required: true
+  repoName:
+    description: "Prefix added to the path registered in FutureVuls (e.g. owner/repo)."
+    required: false
 runs:
   using: "docker"
   image: "Dockerfile"
